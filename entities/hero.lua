@@ -13,9 +13,10 @@ function Hero.init(name, image, x, y, w, h, world)
   --init animation--
   self.animations = {}
   self.images = {}
-  self.initAnimation(self)
   self.animation = nil
+  self.reverse_animations = nil
   self.image = nil
+  self.initAnimation(self)
 
   return self
 end
@@ -30,21 +31,24 @@ function Hero:initAnimation(width, height)
 
   local walk_image = love.graphics.newImage('data/gfx/hero/WalkingAnimation.png')
   local walk_g = anim8.newGrid(width, height, walk_image:getWidth(), walk_image:getHeight())
-  local walk_right_animation = anim8.newAnimation(walk_g('1-4',1), 0.1)
-  local walk_left_animation = walk_right_animation:clone()
-  walk_left_animation:flipH()
+  local walk_animation = anim8.newAnimation(walk_g('1-4',1), 0.1)
 
-  self.animations = {idle_animation = idle_animation, walk_right_animation = walk_right_animation,
-    walk_left_animation = walk_left_animation }
-  self.images = {idle_image = idle_image, walk_image = walk_image}
+  self.animations = {idle = idle_animation, walk = walk_animation}
+  self.images = {idle = idle_image, walk = walk_image}
+
+  -- reverse animation --
+  local reverse_idle = idle_animation:clone()
+  reverse_idle:flipH()
+
+  local reverse_walk = walk_animation:clone()
+  reverse_walk:flipH()
+
+  self.reverse_animations = {idle = reverse_idle, walk = reverse_walk}
 end
 
 function Hero:changeVelocityByKeys(dt)
-  if love.keyboard.isDown("up") and self.onGround == true then
-    print("ama jump")
-    self.vel.y = self.vel.y - self.jumpPower * dt
-    self.isJump = true 
-    self.onGround = false
+  if love.keyboard.isDown("up") then
+    self:jump(dt)
   end
 
 
@@ -54,29 +58,37 @@ function Hero:changeVelocityByKeys(dt)
   --end
    
   if love.keyboard.isDown("right") then
-    self.vel.x = self.vel.x + self.ms * dt 
+    self.vel.x = self.ms * dt 
   end
    
   if love.keyboard.isDown("left") then
-    self.vel.x = self.vel.x - self.ms * dt 
+    self.vel.x = -self.ms * dt 
   end
 end
 
 function Hero:playEffect(dt)
   --if self.onGround == false then
-    self.animation = self.animations.idle_animation
-    self.image = self.images.idle_image
+    local current_animation = "idle"
+    local current_image = "idle"
   --end
 
-  if self.vel.x > 0 then
-    self.animation = self.animations.walk_right_animation
-    self.image = self.images.walk_image
+  if self.vel.x ~= 0 then
+    current_animation = "walk"
+    current_image = "walk"
+
+    self.to_right = false
+    if self.vel.x > 0 then
+      self.to_right = true
+    end
   end
 
-  if self.vel.x < 0 then
-    self.animation = self.animations.walk_left_animation
-    self.image = self.images.walk_image
+  self.image = self.images[current_image]
+  if self.to_right == true then
+    self.animation = self.animations[current_animation]
+  else
+    self.animation = self.reverse_animations[current_animation]
   end
+
 
   self.animation:update(dt)
 end
@@ -89,7 +101,7 @@ function Hero:update(dt)
 
   self:playEffect(dt)
 
-  self.vel:clear()
+  self.vel.x = 0
 
 	--Entity.update(self)
 end
